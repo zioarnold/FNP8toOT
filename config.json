@@ -1,0 +1,27 @@
+{
+  "sourceCPE": "http://xxx:000/wsi/FNCEWS40MTOM/",
+  "sourceCPEObjectStore": "xxx",
+  "sourceCPEUsername": "xxx",
+  "sourceCPEPassword": "xxx",
+  "whatToProcess": "Folders",
+  "documentClass": "Document,CustomObject",
+  "pathToStore": "D:/FileNetExport/",
+  "csv": "path\\file_da_esportare.csv",
+  "phase": "2",
+  "objectClasses": [
+    {
+      "CustomObject": [
+        "customobject=true"
+      ],
+      "Document": [
+        "documents=true"
+      ],
+      "Folder": [
+        "folders=true"
+      ]
+    }
+  ],
+  "objectFolder": [
+    "paths"
+  ]
+}
