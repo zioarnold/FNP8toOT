@@ -1,4 +1,8 @@
-import com.filenet.api.collection.*;
+package r2u.tools;
+
+import com.filenet.api.collection.ContentElementList;
+import com.filenet.api.collection.DocumentSet;
+import com.filenet.api.collection.RepositoryRowSet;
 import com.filenet.api.core.*;
 import com.filenet.api.property.Properties;
 import com.filenet.api.query.RepositoryRow;
@@ -10,56 +14,54 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Logger;
 
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Arrays.asList;
 
-@SuppressWarnings({"DuplicatedCode", "SpellCheckingInspection", "DuplicateBranchesInSwitch"})
+@SuppressWarnings({"SpellCheckingInspection", "DuplicateBranchesInSwitch", "DuplicatedCode"})
 public class FNExportWorker {
     private String path;
-    private HashMap<String, Boolean> customObjectMap = null,
-            documentClassMap = null,
-            folderMap = null;
+    Logger logger = null;
 
     public void process(String docClass,
                         ObjectStore objectStoreSource,
                         HashMap<String, Boolean> customObjectMap,
                         HashMap<String, Boolean> documentClassMap,
                         HashMap<String, Boolean> folderMap,
-                        String pathToStore) {
-        this.customObjectMap = customObjectMap;
-        this.documentClassMap = documentClassMap;
-        this.folderMap = folderMap;
+                        String pathToStore,
+                        Logger logger) {
         this.path = pathToStore;
+        this.logger = logger;
         if (docClass.equalsIgnoreCase("Document")) {
-            extractMetadataDocument(docClass, objectStoreSource);
+            extractMetadataDocument(docClass, objectStoreSource, documentClassMap);
         }
         if (docClass.equalsIgnoreCase("CustomObject")) {
-            extractMetadataCustomObject(docClass, objectStoreSource);
+            extractMetadataCustomObject(docClass, objectStoreSource, customObjectMap);
         }
         if (docClass.equalsIgnoreCase("Folder")) {
-            extractMetadataFolder(docClass, objectStoreSource);
+            extractMetadataFolder(docClass, objectStoreSource, folderMap);
         }
     }
 
 
-    public void processFolders(ObjectStore objectStoreSource, String pathToStore, List<Object> folderList) throws IOException {
+    public void processFolders(ObjectStore objectStoreSource, String pathToStore, List<Object> folderList, Logger logger) {
+        this.logger = logger;
         for (Object folder : folderList) {
             Folder folderInstance = Factory.Folder.fetchInstance(objectStoreSource, (String) folder, null);
             storeData(pathToStore, folderInstance);
         }
     }
 
-    private static void storeData(String pathToStore, Folder folderInstance) throws IOException {
+    private void storeData(String pathToStore, Folder folderInstance) {
+
         if (!folderInstance.get_SubFolders().isEmpty()) {
             Iterator iterator = folderInstance.get_SubFolders().iterator();
             while (iterator.hasNext()) {
                 Folder currentFolder = (Folder) iterator.next();
-                System.out.println("Working on: " + currentFolder.get_PathName());
+                logger.info("Working on: " + currentFolder.get_PathName());
                 if (!currentFolder.get_ContainedDocuments().isEmpty()) {
                     DocumentSet containedDocuments = currentFolder.get_ContainedDocuments();
                     Iterator containedDocIterator = containedDocuments.iterator();
@@ -70,8 +72,12 @@ public class FNExportWorker {
                             for (Object docContentElement : contentElements) {
                                 ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                 InputStream inputStream = contentTransfer.accessContentStream();
-                                System.out.println("Trying to save file under path: " + pathToStore + currentFolder.get_PathName() + "/" + document.get_Name());
-                                FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + currentFolder.get_PathName() + "/" + document.get_Name()));
+                                logger.info("Trying to save file under path: " + pathToStore + currentFolder.get_PathName() + "/" + document.get_Name());
+                                try {
+                                    FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + currentFolder.get_PathName() + "/" + document.get_Name()));
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         }
                     }
@@ -89,8 +95,12 @@ public class FNExportWorker {
                         for (Object docContentElement : contentElements) {
                             ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                             InputStream inputStream = contentTransfer.accessContentStream();
-                            System.out.println("Trying to save file under path: " + pathToStore + folderInstance.get_PathName() + "/" + document.get_Name());
-                            FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + folderInstance.get_PathName() + "/" + document.get_Name()));
+                            logger.info("Trying to save file under path: " + pathToStore + folderInstance.get_PathName() + "/" + document.get_Name());
+                            try {
+                                FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + folderInstance.get_PathName() + "/" + document.get_Name()));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
                         }
                     }
                 }
@@ -106,7 +116,7 @@ public class FNExportWorker {
         return searchScope.fetchRows(searchSQL, null, null, Boolean.TRUE);
     }
 
-    private void extractMetadataDocument(String docClass, ObjectStore objectStoreSource) {
+    private void extractMetadataDocument(String docClass, ObjectStore objectStoreSource, HashMap<String, Boolean> documentClassMap) {
         Iterator iterator = fetchRows(docClass, objectStoreSource).iterator();
         while (iterator.hasNext()) {
             RepositoryRow repositoryRow = (RepositoryRow) iterator.next();
@@ -117,15 +127,15 @@ public class FNExportWorker {
                 switch (documentSource.getClassName()) {
                     case "DRE":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -133,15 +143,15 @@ public class FNExportWorker {
                         break;
                     case "AllegatoFADO":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -149,15 +159,15 @@ public class FNExportWorker {
                         break;
                     case "AllegatoPatrimoniale":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -165,15 +175,15 @@ public class FNExportWorker {
                         break;
                     case "DocumentiNecessariPerCategoriaFADO":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -181,15 +191,15 @@ public class FNExportWorker {
                         break;
                     case "DocumentoArchibus":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -197,15 +207,15 @@ public class FNExportWorker {
                         break;
                     case "DocumentoFADO":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -213,15 +223,15 @@ public class FNExportWorker {
                         break;
                     case "DocumentoFADOVersioning":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -229,15 +239,15 @@ public class FNExportWorker {
                         break;
                     case "DocumentoPatrimoniale":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -245,15 +255,15 @@ public class FNExportWorker {
                         break;
                     case "FADOMappingCategorie":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -261,15 +271,15 @@ public class FNExportWorker {
                         break;
                     case "FaldoniListHolder":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -277,15 +287,15 @@ public class FNExportWorker {
                         break;
                     case "ReportDRE":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -293,15 +303,15 @@ public class FNExportWorker {
                         break;
                     case "ReportAllegatoX":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -309,15 +319,15 @@ public class FNExportWorker {
                         break;
                     case "ReportCaricamentoMassivoPatrimoniale":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -325,15 +335,15 @@ public class FNExportWorker {
                         break;
                     case "ReportDocumentiDRE":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -341,15 +351,15 @@ public class FNExportWorker {
                         break;
                     case "ReportDocumentiPatrimoniale":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -357,15 +367,15 @@ public class FNExportWorker {
                         break;
                     case "ReportGruppiLottiCategorie":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -373,15 +383,15 @@ public class FNExportWorker {
                         break;
                     case "ReportImmobiliDRE":
                         if (documentClassMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className: " + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className: " + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -389,12 +399,13 @@ public class FNExportWorker {
                         break;
                 }
             } catch (Exception exception) {
-                exception.printStackTrace();
+                logger.severe(exception.toString());
             }
         }
     }
 
-    private void extractMetadataCustomObject(String docClass, ObjectStore objectStoreSource) {
+    private void extractMetadataCustomObject(String docClass, ObjectStore objectStoreSource, HashMap<String, Boolean> customObjectMap) {
+
         Iterator iterator = fetchRows(docClass, objectStoreSource).iterator();
         while (iterator.hasNext()) {
             RepositoryRow repositoryRow = (RepositoryRow) iterator.next();
@@ -405,15 +416,15 @@ public class FNExportWorker {
                 switch (documentSource.getClassName()) {
                     case "ImmobileFaldoneSecProxyObject":
                         if (customObjectMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -421,15 +432,15 @@ public class FNExportWorker {
                         break;
                     case "LottoSecProxyObject":
                         if (customObjectMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -437,15 +448,15 @@ public class FNExportWorker {
                         break;
                     case "ProgressiveNumberDispenser":
                         if (customObjectMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -453,15 +464,15 @@ public class FNExportWorker {
                         break;
                     case "FaldoneDispenser":
                         if (customObjectMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -469,15 +480,15 @@ public class FNExportWorker {
                         break;
                     case "LottoDispenser":
                         if (customObjectMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                             Document doc = Factory.Document.fetchInstance(objectStoreSource, id, null);
                             ContentElementList docContentElements = doc.get_ContentElements();
                             if (!docContentElements.isEmpty()) {
-                                System.out.println("Found some files, working on export");
+                                logger.info("Found some files, working on export");
                                 for (Object docContentElement : docContentElements) {
                                     ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
                                     InputStream inputStream = contentTransfer.accessContentStream();
-                                    System.out.println("Trying to save file under path: " + path + doc.get_Name());
+                                    logger.info("Trying to save file under path: " + path + doc.get_Name());
                                     FileUtils.copyInputStreamToFile(inputStream, new File(path + doc.get_Name()));
                                 }
                             }
@@ -485,12 +496,13 @@ public class FNExportWorker {
                         break;
                 }
             } catch (Exception exception) {
-                exception.printStackTrace();
+                logger.severe(exception.toString());
             }
         }
     }
 
-    private void extractMetadataFolder(String docClass, ObjectStore objectStoreSource) {
+    private void extractMetadataFolder(String docClass, ObjectStore objectStoreSource, HashMap<String, Boolean> folderMap) {
+
         Iterator iterator = fetchRows(docClass, objectStoreSource).iterator();
         while (iterator.hasNext()) {
             RepositoryRow repositoryRow = (RepositoryRow) iterator.next();
@@ -501,67 +513,63 @@ public class FNExportWorker {
                 switch (documentSource.getClassName()) {
                     case "DREFolder":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "CartellaContatori":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "Categoria":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "CategoriaFado":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "CategoriaPatrimoniale":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "Faldone":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "Immobile":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "ImmobilePatrimoniale":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                     case "LottoImmobili":
                         if (folderMap.get(documentSource.getClassName())) {
-                            System.out.println("Working on: " + id + " className:" + documentSource.getClassName());
+                            logger.info("Working on: " + id + " className:" + documentSource.getClassName());
                         }
                         break;
                 }
             } catch (Exception exception) {
-                exception.printStackTrace();
+                logger.severe(exception.toString());
             }
         }
     }
 
-    public void processCSVRenameFiles(String csv, String pathToStore) {
-        if (csv.isEmpty()) {
-            System.out.println("No CSV file given to process");
-            System.exit(-1);
-        }
+    public void processCSVRenameFiles(String csv, String pathToStore, Logger logger) {
         this.path = pathToStore;
         List<String> pathList = null;
         try {
             pathList = FileUtils.readLines(new File(csv), "UTF-8");
         } catch (IOException e) {
-            System.out.println("Unable to read the: " + csv + " somehow. Aborting!!!!");
+            logger.info("Unable to read the: " + csv + " somehow. Aborting!!!!");
             System.exit(-1);
         }
         int rowNumber = 1;//xk skippo prima riga di intestazione
@@ -571,7 +579,7 @@ public class FNExportWorker {
             String originalPath = "";
             try {
                 rowNumber++;
-                System.out.println("Working on: " + rowNumber + " line of CSV file given.");
+                logger.info("Working on: " + rowNumber + " line of CSV file given.");
                 String[] splitTwoColumns = pathList.get(i).split(";");
                 //Splitto la prima colonna del path
                 String[] splitFirstColumn = splitTwoColumns[0].toString().split("/");
@@ -584,14 +592,14 @@ public class FNExportWorker {
                 File newFile = new File(this.path + originalPath + "/" + splitTwoColumns[1]);
                 //vedo se il file indicato nel csv nella prima colonna esiste
                 if (Files.exists(originalFile.toPath())) {
-                    System.out.println("File: " + originalFile + " exist!");
+                    logger.info("File: " + originalFile + " exist!");
                     //Lo rinomino come e` indicato nella seconda colonna.
                     FileUtils.moveFile(originalFile, newFile);
                 }
             } catch (ArrayIndexOutOfBoundsException exception) {
-                System.out.println("Empty row detected on line: " + rowNumber + ".");
+                logger.severe("Empty row detected on line: " + rowNumber + ".");
             } catch (IOException e) {
-                System.out.println("Unable to rename file somehow. Row affected: " + rowNumber + ".");
+                logger.severe("Unable to rename file somehow. Row affected: " + rowNumber + ".");
             }
         }
     }
