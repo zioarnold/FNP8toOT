@@ -8,6 +8,7 @@
   "pathToStore": "D:/FileNetExport/",
   "csv": "path\\file_da_esportare.csv",
   "phase": "2",
+  "fileLogPath": "logs\\",
   "objectClasses": [
     {
       "CustomObject": [
