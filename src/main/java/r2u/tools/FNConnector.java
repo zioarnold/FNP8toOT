@@ -22,13 +22,10 @@ public class FNConnector {
     private final String sourceCPEPassword;
     private final String documentClass;
     private final String whatToProcess;
-    private final String csv;
     private final String phase;
     private final JSONArray objectClasses;
     private final JSONArray objectFolder;
-    private final String pathToStore;
     private final FNExportWorker fnExportWorker;
-    static Connection sourceConnection = null;
 
     Logger logger;
 
@@ -43,35 +40,22 @@ public class FNConnector {
                        String whatToProcess,
                        String csv,
                        String phase,
+                       String regex,
                        Logger logger) {
         this.uriSource = uriSource;
         this.objectStoreSource = objectStoreSource;
         this.sourceCPEUsername = sourceCPEUsername;
         this.sourceCPEPassword = sourceCPEPassword;
         this.documentClass = documentClass;
-        this.pathToStore = pathToStore;
         this.objectClasses = objectClasses;
         this.objectFolder = objectFolder;
         this.whatToProcess = whatToProcess;
-        this.csv = csv;
         this.phase = phase;
         this.logger = logger;
-        fnExportWorker = new FNExportWorker();
-    }
-
-    private boolean isSourceConnected() {
-        boolean connected = false;
-        if (sourceConnection == null) {
-            sourceConnection = Factory.Connection.getConnection(uriSource);
-            Subject subject = UserContext.createSubject(sourceConnection, sourceCPEUsername, sourceCPEPassword, "FileNetP8WSI");
-            UserContext.get().pushSubject(subject);
-            connected = true;
-        }
-        return connected;
+        fnExportWorker = new FNExportWorker(pathToStore, regex, logger, csv);
     }
 
     public void startExport() {
-        Domain sourceDomain = null;
         String[] documentClass = this.documentClass.split(",");
         List<Object> customObject = this.objectClasses.getJSONObject(0).getJSONArray("CustomObject").toList();
         List<Object> document = this.objectClasses.getJSONObject(0).getJSONArray("Document").toList();
@@ -95,79 +79,94 @@ public class FNConnector {
             folderMap.put(s[0], Boolean.parseBoolean(s[1]));
         }
 
-        //Verifico se raggiungo CPE dell'ingresso, se non va, non si lavora
-        if (isSourceConnected()) {
+        long startTime, endTime;
+        switch (whatToProcess) {
+            case "DocumentClasses":
+                logger.info("Working with: " + whatToProcess);
+                startTime = System.currentTimeMillis();
+                for (String docClass : documentClass) {
+                    fnExportWorker.process(docClass,
+                            getObjectStoreSource(),
+                            customObjectMap,
+                            documentClassMap,
+                            folderMap);
+                }
+                endTime = System.currentTimeMillis();
+                logger.info("Work with (" + whatToProcess + ") is done within: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+            break;
+            case "Folders":
+                switch (phase) {
+                    default:
+                        logger.info("Please, specify variale PHASE. Variable managed are: 1,2 and 3, All.");
+                        System.exit(-1);
+                    break;
+                    case "1":
+                        //Scarica fi file dalla cartella dall'object store indicata nel "objectFolder"
+                        logger.info("Started phase 1:");
+                        logger.info("Working with: " + whatToProcess);
+                        startTime = System.currentTimeMillis();
+                        fnExportWorker.processFolders(getObjectStoreSource(), folderList);
+                        endTime = System.currentTimeMillis();
+                        logger.info("Job done with: " + whatToProcess);
+                        logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+                    break;
+                    case "2":
+                        //Rinomina i file in accordo con file csv
+                        logger.info("Started phase 2:");
+                        startTime = System.currentTimeMillis();
+                        fnExportWorker.renameFiles(folderList);
+                        endTime = System.currentTimeMillis();
+                        logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+                    break;
+                    case "3":
+                        //Elimina i file che non c'entrano coi file presenti nel csv
+                        logger.info("Started phase 3:");
+                        startTime = System.currentTimeMillis();
+                        fnExportWorker.deleteRemnantsFiles(folderList);
+                        endTime = System.currentTimeMillis();
+                        logger.info("Terminated phase 3: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+                    break;
+                    case "All":
+                        //Fa tutto
+                        logger.info("Started phase 1:");
+                        startTime = System.currentTimeMillis();
+                        fnExportWorker.processFolders(getObjectStoreSource(), folderList);
+                        endTime = System.currentTimeMillis();
+                        logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+                        logger.info("Started phase 2:");
+                        startTime = System.currentTimeMillis();
+                        fnExportWorker.renameFiles(folderList);
+                        endTime = System.currentTimeMillis();
+                        logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+                        logger.info("Started phase 3:");
+                        startTime = System.currentTimeMillis();
+                        fnExportWorker.deleteRemnantsFiles(folderList);
+                        endTime = System.currentTimeMillis();
+                        logger.info("Terminated phase 3: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
+                    break;
+                }
+            break;
+        }
+    }
 
-            try {
-                sourceDomain = Factory.Domain.fetchInstance(sourceConnection, null, null);
-                logger.info("FileNet sourceDomain name: " + sourceDomain.get_Name());
-            } catch (EngineRuntimeException exception) {
-                logger.severe(exception.toString());
-            }
-
-            ObjectStore objectStoreSource = Factory.ObjectStore.fetchInstance(sourceDomain, this.objectStoreSource, null);
+    private ObjectStore getObjectStoreSource() {
+        Domain sourceDomain;
+        Connection sourceConnection;
+        ObjectStore objectStoreSource = null;
+        try {
+            sourceConnection = Factory.Connection.getConnection(uriSource);
+            Subject subject = UserContext.createSubject(sourceConnection, sourceCPEUsername, sourceCPEPassword, "FileNetP8WSI");
+            UserContext.get().pushSubject(subject);
+            sourceDomain = Factory.Domain.fetchInstance(sourceConnection, null, null);
+            logger.info("FileNet sourceDomain name: " + sourceDomain.get_Name());
+            objectStoreSource = Factory.ObjectStore.fetchInstance(sourceDomain, this.objectStoreSource, null);
             logger.info("Object Store source: " + objectStoreSource.get_DisplayName());
             logger.info("Connected to Source CPE successfully:" + sourceConnection.getURI() + " " + sourceConnection.getConnectionType());
             logger.info("Switching process work (DocumentClasses or Folders): " + whatToProcess);
-            long startTime, endTime;
-            switch (whatToProcess) {
-                case "DocumentClasses":
-                    logger.info("Working with: " + whatToProcess);
-                    startTime = System.currentTimeMillis();
-                    for (String docClass : documentClass) {
-                        fnExportWorker.process(docClass,
-                                objectStoreSource,
-                                customObjectMap,
-                                documentClassMap,
-                                folderMap,
-                                pathToStore,
-                                logger);
-                    }
-                    endTime = System.currentTimeMillis();
-                    logger.info("Work with (" + whatToProcess + ") is done within: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                    break;
-                case "Folders":
-                    switch (phase) {
-                        default:
-                            logger.info("Please, specify variale PHASE. Variable managed are: 1,2 and 3.");
-                            System.exit(-1);
-                            break;
-                        case "1":
-                            logger.info("Started phase 1:");
-                            logger.info("Working with: " + whatToProcess);
-                            startTime = System.currentTimeMillis();
-                            fnExportWorker.processFolders(objectStoreSource, pathToStore, folderList, logger);
-                            endTime = System.currentTimeMillis();
-                            logger.info("Job done with: " + whatToProcess);
-                            logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                            break;
-                        case "2":
-                            logger.info("Started phase 2: ");
-                            startTime = System.currentTimeMillis();
-                            fnExportWorker.processCSVRenameFiles(csv, pathToStore, logger);
-                            endTime = System.currentTimeMillis();
-                            logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                            break;
-                        case "3":
-                            logger.info("Started phase 1:");
-                            logger.info("Working with: " + whatToProcess);
-                            startTime = System.currentTimeMillis();
-                            fnExportWorker.processFolders(objectStoreSource, pathToStore, folderList, logger);
-                            endTime = System.currentTimeMillis();
-                            logger.info("Job done with: " + whatToProcess);
-                            logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                            logger.info("Started phase 2: ");
-                            startTime = System.currentTimeMillis();
-                            fnExportWorker.processCSVRenameFiles(csv, pathToStore, logger);
-                            endTime = System.currentTimeMillis();
-                            logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                            break;
-                    }
-                    break;
-            }
-        } else {
-            logger.info("Source isn't connected. Make sure your Internet is ok, VPN is on.");
+        } catch (EngineRuntimeException exception) {
+            logger.severe(exception.toString());
             System.exit(-1);
         }
+        return objectStoreSource;
     }
 }

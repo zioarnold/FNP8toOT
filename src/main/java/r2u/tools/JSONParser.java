@@ -1,5 +1,6 @@
 package r2u.tools;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -33,7 +34,8 @@ public class JSONParser {
                 whatToProcess = jsonObject.getString("whatToProcess"),
                 csv = jsonObject.getString("csv"),
                 phase = jsonObject.getString("phase"),
-                fileLogPath = jsonObject.getString("fileLogPath");
+                fileLogPath = jsonObject.getString("fileLogPath"),
+                regex = jsonObject.getString("regex");
 
         if (sourceCPE.isEmpty()) {
             System.out.println("SourceCPE is empty. Aborting!");
@@ -72,6 +74,11 @@ public class JSONParser {
             System.exit(-1);
         }
 
+        if (regex.isEmpty()) {
+            System.out.println("regex is empty. Aborting!");
+            System.exit(-1);
+        }
+
         JSONArray objectClasses = jsonObject.getJSONArray("objectClasses");
         JSONArray objectFolder = jsonObject.getJSONArray("objectFolder");
 
@@ -86,6 +93,16 @@ public class JSONParser {
         }
 
         Path path = Paths.get(fileLogPath);
+
+        if (Files.exists(path)) {
+            try {
+                FileUtils.deleteDirectory(path.toFile());
+            } catch (IOException e) {
+                System.out.println("Unable to cleanup logPath: " + path);
+                System.exit(-1);
+            }
+        }
+
         if (Files.notExists(path)) {
             try {
                 Files.createDirectories(path);
@@ -116,6 +133,7 @@ public class JSONParser {
                 whatToProcess,
                 csv,
                 phase,
+                regex,
                 logger
         );
         fnConnector.startExport();
