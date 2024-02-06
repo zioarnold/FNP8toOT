@@ -42,11 +42,11 @@ public class FNExportWorker {
         fnFolder = new FNFolder(pathToStore, logger);
     }
     //Viene invocato qualora "whatToProcess" e` impostato a "DocumentClasses".
-    public void process(String docClass,
-                        ObjectStore objectStoreSource,
-                        HashMap<String, Boolean> customObjectMap,
-                        HashMap<String, Boolean> documentClassMap,
-                        HashMap<String, Boolean> folderMap) {
+    public void extractByObjectClass(String docClass,
+                                     ObjectStore objectStoreSource,
+                                     HashMap<String, Boolean> customObjectMap,
+                                     HashMap<String, Boolean> documentClassMap,
+                                     HashMap<String, Boolean> folderMap) {
         if (docClass.equalsIgnoreCase("Document")) {
             extractMetadataDocument(docClass, objectStoreSource, documentClassMap);
         }
@@ -62,56 +62,47 @@ public class FNExportWorker {
     public void processFolders(ObjectStore objectStoreSource, List<Object> folderList) {
         for (Object folder : folderList) {
             Folder folderInstance = Factory.Folder.fetchInstance(objectStoreSource, (String) folder, null);
-            storeData(this.pathToStore, folderInstance);
+            fileFolderLookup(this.pathToStore, folderInstance);
         }
     }
 
-    private void storeData(String pathToStore, Folder folderInstance) {
+    private void fileFolderLookup(String pathToStore, Folder folderInstance) {
+        //se la cartella contiene sotto cartelle vedo per la cartella corrente se ci sono i file da scaricare,
+        //scarico i file nella cartella corrente e poi procedo col altra in modo recursivo
+        //spero che funzioni cosi` :-D
         if (!folderInstance.get_SubFolders().isEmpty()) {
             Iterator iterator = folderInstance.get_SubFolders().iterator();
             while (iterator.hasNext()) {
                 Folder currentFolder = (Folder) iterator.next();
                 logger.info("Working on: " + currentFolder.get_PathName());
                 if (!currentFolder.get_ContainedDocuments().isEmpty()) {
-                    DocumentSet containedDocuments = currentFolder.get_ContainedDocuments();
-                    Iterator containedDocIterator = containedDocuments.iterator();
-                    while (containedDocIterator.hasNext()) {
-                        Document document = (Document) containedDocIterator.next();
-                        ContentElementList contentElements = document.get_ContentElements();
-                        if (!contentElements.isEmpty()) {
-                            for (Object docContentElement : contentElements) {
-                                ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
-                                InputStream inputStream = contentTransfer.accessContentStream();
-                                logger.info("Trying to save file under path: " + pathToStore + currentFolder.get_PathName() + "/" + document.get_Name());
-                                try {
-                                    FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + currentFolder.get_PathName() + "/" + document.get_Name()));
-                                } catch (IOException e) {
-                                    logger.severe(e.toString());
-                                }
-                            }
-                        }
-                    }
+                    storeFile(pathToStore, currentFolder);
                 }
-                storeData(pathToStore, currentFolder);
+                fileFolderLookup(pathToStore, currentFolder);
             }
         } else {
             if (!folderInstance.get_ContainedDocuments().isEmpty()) {
-                DocumentSet containedDocuments = folderInstance.get_ContainedDocuments();
-                Iterator containedDocIterator = containedDocuments.iterator();
-                while (containedDocIterator.hasNext()) {
-                    Document document = (Document) containedDocIterator.next();
-                    ContentElementList contentElements = document.get_ContentElements();
-                    if (!contentElements.isEmpty()) {
-                        for (Object docContentElement : contentElements) {
-                            ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
-                            InputStream inputStream = contentTransfer.accessContentStream();
-                            logger.info("Trying to save file under path: " + pathToStore + folderInstance.get_PathName() + "/" + document.get_Name());
-                            try {
-                                FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + folderInstance.get_PathName() + "/" + document.get_Name()));
-                            } catch (IOException e) {
-                                logger.severe(e.toString());
-                            }
-                        }
+                //se la cartella contiene i file
+                storeFile(pathToStore, folderInstance);
+            }
+        }
+    }
+
+    private void storeFile(String pathToStore, Folder currentFolder) {
+        DocumentSet containedDocuments = currentFolder.get_ContainedDocuments();
+        Iterator containedDocIterator = containedDocuments.iterator();
+        while (containedDocIterator.hasNext()) {
+            Document document = (Document) containedDocIterator.next();
+            ContentElementList contentElements = document.get_ContentElements();
+            if (!contentElements.isEmpty()) {
+                for (Object docContentElement : contentElements) {
+                    ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
+                    InputStream inputStream = contentTransfer.accessContentStream();
+                    logger.info("Trying to save file under path: " + pathToStore + currentFolder.get_PathName() + "/" + document.get_Name());
+                    try {
+                        FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + currentFolder.get_PathName() + "/" + document.get_Name()));
+                    } catch (IOException e) {
+                        logger.severe(e.toString());
                     }
                 }
             }
@@ -127,6 +118,7 @@ public class FNExportWorker {
     }
 
     //TODO: Da capire se va usato
+    // Forse verra` usato negli futuri sviluppi
     private void extractMetadataDocument(String docClass, ObjectStore objectStoreSource, HashMap<String, Boolean> documentClassMap) {
         Iterator iterator = fetchRows(docClass, objectStoreSource).iterator();
         while (iterator.hasNext()) {
@@ -229,6 +221,7 @@ public class FNExportWorker {
     }
 
     //TODO: Da capire se va usato
+    // Forse verra` usato negli futuri sviluppi
     private void extractMetadataCustomObject(String docClass, ObjectStore objectStoreSource, HashMap<String, Boolean> customObjectMap) {
         Iterator iterator = fetchRows(docClass, objectStoreSource).iterator();
         while (iterator.hasNext()) {
@@ -271,6 +264,7 @@ public class FNExportWorker {
     }
 
     //TODO: Da capire se va usato
+    // Forse verra` usato negli futuri sviluppi
     private void extractMetadataFolder(String docClass, ObjectStore objectStoreSource, HashMap<String, Boolean> folderMap) {
         Iterator iterator = fetchRows(docClass, objectStoreSource).iterator();
         while (iterator.hasNext()) {
@@ -365,6 +359,7 @@ public class FNExportWorker {
         return newFileNames;
     }
 
+    @SuppressWarnings("ForLoopReplaceableByForEach")
     public void renameFiles(List<Object> folderList) {
         List<String> oldFileNames = returnOldFileNamesFromOriginPath();
         List<String> newFileNames = returnNewFileNamesFromCSV();
@@ -418,6 +413,7 @@ public class FNExportWorker {
         return string.replaceAll(regex, "");
     }
 
+    @SuppressWarnings("ForLoopReplaceableByForEach")
     public void deleteRemnantsFiles(List<Object> folderList) {
         List<String> newFileNames = returnNewFileNamesFromCSV();
         //Ciclo principale preso da "objectFolder" su Json

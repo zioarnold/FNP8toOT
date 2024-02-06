@@ -13,33 +13,40 @@
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <start-class>r2u.tools.Main</start-class>
-        <filenet.cpe.install.path>${project.basedir}\lib</filenet.cpe.install.path>
+<!--        Decommentare stringa sotto per la parte linux-->
+<!--        <filenet.cpe.install.path>${project.basedir}</filenet.cpe.install.path>-->
+        <filenet.cpe.install.path>S:/JavaProjects/Utils/FNP8toOT</filenet.cpe.install.path>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>FILENETP8</groupId>
-            <artifactId>navigator-api</artifactId>
-            <version>2.0.3</version>
+            <groupId>com.ibm.filenet.cpe</groupId>
+            <artifactId>navigatorAPI</artifactId>
+            <version>icn203.601.003</version>
         </dependency>
         <dependency>
-            <groupId>FILENETP8</groupId>
-            <artifactId>filenet-jace</artifactId>
+            <groupId>com.ibm.filenet.cpe</groupId>
+            <artifactId>Jace</artifactId>
             <version>5.2.1.5</version>
         </dependency>
         <dependency>
-            <groupId>FILENETP8</groupId>
-            <artifactId>filenet-stax</artifactId>
+            <groupId>com.ibm.filenet.cpe</groupId>
+            <artifactId>javaapi</artifactId>
             <version>5.2.1.5</version>
         </dependency>
         <dependency>
-            <groupId>FILENETP8</groupId>
-            <artifactId>filenet-xlxpScanner</artifactId>
+            <groupId>com.ibm.filenet.cpe</groupId>
+            <artifactId>stax-api</artifactId>
             <version>5.2.1.5</version>
         </dependency>
         <dependency>
-            <groupId>FILENETP8</groupId>
-            <artifactId>filenet-xlxpScannerUtils</artifactId>
+            <groupId>com.ibm.filenet.cpe</groupId>
+            <artifactId>xlxpScanner</artifactId>
+            <version>5.2.1.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.filenet.cpe</groupId>
+            <artifactId>xlxpScannerUtils</artifactId>
             <version>5.2.1.5</version>
         </dependency>
         <dependency>
@@ -55,12 +62,12 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.5</version>
+            <version>2.15.1</version>
         </dependency>
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.11</version>
         </dependency>
     </dependencies>
 
@@ -125,7 +132,7 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <finalName>FNP8toOT-${version}</finalName>
+                    <finalName>FNP8toOT-${project.version}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
             </plugin>
@@ -134,6 +141,23 @@
                 <version>2.3.1</version>
                 <inherited>false</inherited>
                 <executions>
+                    <!-- Navigator file -->
+                    <execution>
+                        <id>install-artifacts-filenet:Navigator</id>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <phase>install</phase>
+                        <configuration>
+                            <file>${filenet.cpe.install.path}/lib/navigatorAPI.jar</file>
+                            <groupId>com.ibm.filenet.cpe</groupId>
+                            <artifactId>navigatorAPI</artifactId>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${icnversion}</version>
+                            <packaging>jar</packaging>
+                            <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
                     <!-- CPE Files -->
                     <execution>
                         <id>install-artifacts-filenet:Jace</id>
@@ -145,6 +169,8 @@
                             <file>${filenet.cpe.install.path}/lib/Jace.jar</file>
                             <groupId>com.ibm.filenet.cpe</groupId>
                             <artifactId>Jace</artifactId>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${filenetversion}</version>
                             <packaging>jar</packaging>
                             <generatePom>true</generatePom>
                         </configuration>
@@ -159,20 +185,8 @@
                             <file>${filenet.cpe.install.path}/lib/javaapi.jar</file>
                             <groupId>com.ibm.filenet.cpe</groupId>
                             <artifactId>javaapi</artifactId>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-artifacts-filenet:listener</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>install</phase>
-                        <configuration>
-                            <file>${filenet.cpe.install.path}/lib/listener.jar</file>
-                            <groupId>com.ibm.filenet.cpe</groupId>
-                            <artifactId>listener</artifactId>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${filenetversion}</version>
                             <packaging>jar</packaging>
                             <generatePom>true</generatePom>
                         </configuration>
@@ -187,80 +201,8 @@
                             <file>${filenet.cpe.install.path}/lib/log4j.jar</file>
                             <groupId>com.ibm.filenet.cpe</groupId>
                             <artifactId>log4j</artifactId>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-artifacts-filenet:p8cjares</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>install</phase>
-                        <configuration>
-                            <file>${filenet.cpe.install.path}/lib/p8cjares.jar</file>
-                            <groupId>com.ibm.filenet.cpe</groupId>
-                            <artifactId>p8cjares</artifactId>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                    </execution>
-                    <!-- PE files -->
-                    <execution>
-                        <id>install-artifacts-filenet:pe</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>install</phase>
-                        <configuration>
-                            <file>${filenet.cpe.install.path}/lib/pe.jar</file>
-                            <groupId>com.ibm.filenet.cpe</groupId>
-                            <artifactId>pe</artifactId>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-artifacts-filenet:peResources</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>install</phase>
-                        <configuration>
-                            <file>${filenet.cpe.install.path}/lib/peResources.jar</file>
-                            <groupId>com.ibm.filenet.cpe</groupId>
-                            <artifactId>peResources</artifactId>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-artifacts-filenet:pe3pt</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>install</phase>
-                        <configuration>
-                            <file>${filenet.cpe.install.path}/lib/pe3pt.jar</file>
-                            <groupId>com.ibm.filenet.cpe</groupId>
-                            <artifactId>pe3pt</artifactId>
-                            <version>5.2.1.5</version>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                    </execution>
-                    <!-- Client Download v5.2.0 and up only -->
-                    <execution>
-                        <id>install-artifacts-filenet:client-download</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>install</phase>
-                        <configuration>
-                            <file>${filenet.cpe.install.path}/cdapi/client-download.jar</file>
-                            <groupId>com.ibm.filenet.cpe</groupId>
-                            <artifactId>client-download</artifactId>
-                            <version>5.2.1.5</version>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${filenetversion}</version>
                             <packaging>jar</packaging>
                             <generatePom>true</generatePom>
                         </configuration>
@@ -275,7 +217,8 @@
                             <file>${filenet.cpe.install.path}/cdapi/stax-api.jar</file>
                             <groupId>com.ibm.filenet.cpe</groupId>
                             <artifactId>stax-api</artifactId>
-                            <version>5.2.1.5</version>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${filenetversion}</version>
                             <packaging>jar</packaging>
                             <generatePom>true</generatePom>
                         </configuration>
@@ -290,7 +233,8 @@
                             <file>${filenet.cpe.install.path}/cdapi/xlxpScanner.jar</file>
                             <groupId>com.ibm.filenet.cpe</groupId>
                             <artifactId>xlxpScanner</artifactId>
-                            <version>5.2.1.5</version>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${filenetversion}</version>
                             <packaging>jar</packaging>
                             <generatePom>true</generatePom>
                         </configuration>
@@ -305,9 +249,39 @@
                             <file>${filenet.cpe.install.path}/cdapi/xlxpScannerUtils.jar</file>
                             <groupId>com.ibm.filenet.cpe</groupId>
                             <artifactId>xlxpScannerUtils</artifactId>
-                            <version>5.2.1.5</version>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <version>${filenetversion}</version>
                             <packaging>jar</packaging>
                             <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.gmaven</groupId>
+                <artifactId>groovy-maven-plugin</artifactId>
+                <version>2.0</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <defaults>
+                                <name>Xenu</name>
+                            </defaults>
+                            <source>
+                                String fileContents = new File("${filenet.cpe.install.path}/ce_version.txt").getText('UTF-8')
+                                matcher = (fileContents =~ /(\d\.\d\.\d.\d)/)
+                                String versionCPE = matcher.getAt(0).getAt(1)
+                                // Set version to be used in
+                                project.properties.filenetversion = versionCPE
+
+                                matcher1 = (fileContents =~ /icn\d{3}.\d{3}.\d{3}/)
+                                String versionICN = matcher1.getAt(0)
+                                project.properties.icnversion = versionICN
+                            </source>
                         </configuration>
                     </execution>
                 </executions>

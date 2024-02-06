@@ -1,0 +1,30 @@
+{
+  "sourceCPE": "http://000:000/wsi/FNCEWS40MTOM/",
+  "sourceCPEObjectStore": "xxx",
+  "sourceCPEUsername": "xxx",
+  "sourceCPEPassword": "yyy",
+  "jaasStanzaName": "FileNetP8WSI",
+  "whatToProcess": "Folders",
+  "documentClass": "Document,CustomObject",
+  "pathToStore": "file_exported/",
+  "csv": "file_to_export.csv",
+  "phase": "3",
+  "fileLogPath": "logs/",
+  "regex": "[&#,+()$~%!„'\"*‚^¤?<>|@ª{«»§}©®™ìùéòèàÙÒÌÉÈÀ√]",
+  "objectFolder": [
+    "/somepath/"
+  ],
+  "objectClasses": [
+    {
+      "CustomObject": [
+			"customobject=true"
+      ],
+      "Document": [
+        "Document=true"
+      ],
+      "Folder": [
+        "Folder=true",
+      ]
+    }
+  ]
+}

@@ -29,6 +29,7 @@ public class JSONParser {
                 sourceCPEObjectStore = jsonObject.getString("sourceCPEObjectStore"),
                 sourceCPEUsername = jsonObject.getString("sourceCPEUsername"),
                 sourceCPEPassword = jsonObject.getString("sourceCPEPassword"),
+                jaasStanzaName = jsonObject.getString("jaasStanzaName"),
                 documentClass = jsonObject.getString("documentClass"),
                 pathToStore = jsonObject.getString("pathToStore"),
                 whatToProcess = jsonObject.getString("whatToProcess"),
@@ -51,6 +52,10 @@ public class JSONParser {
         }
         if (sourceCPEPassword.isEmpty()) {
             System.out.println("sourceCPEPassword is empty. Aborting!");
+            System.exit(-1);
+        }
+        if (jaasStanzaName.isEmpty()) {
+            System.out.println("jaasStanzaName is empty. Aborting!");
             System.exit(-1);
         }
         if (documentClass.isEmpty()) {
@@ -126,6 +131,7 @@ public class JSONParser {
                 sourceCPEObjectStore,
                 sourceCPEUsername,
                 sourceCPEPassword,
+                jaasStanzaName,
                 documentClass,
                 pathToStore,
                 objectClasses,

@@ -23,6 +23,7 @@ public class FNConnector {
     private final String documentClass;
     private final String whatToProcess;
     private final String phase;
+    private final String jaasStanzaName;
     private final JSONArray objectClasses;
     private final JSONArray objectFolder;
     private final FNExportWorker fnExportWorker;
@@ -33,6 +34,7 @@ public class FNConnector {
                        String objectStoreSource,
                        String sourceCPEUsername,
                        String sourceCPEPassword,
+                       String jaasStanzaName,
                        String documentClass,
                        String pathToStore,
                        JSONArray objectClasses,
@@ -46,6 +48,7 @@ public class FNConnector {
         this.objectStoreSource = objectStoreSource;
         this.sourceCPEUsername = sourceCPEUsername;
         this.sourceCPEPassword = sourceCPEPassword;
+        this.jaasStanzaName = jaasStanzaName;
         this.documentClass = documentClass;
         this.objectClasses = objectClasses;
         this.objectFolder = objectFolder;
@@ -85,7 +88,7 @@ public class FNConnector {
                 logger.info("Working with: " + whatToProcess);
                 startTime = System.currentTimeMillis();
                 for (String docClass : documentClass) {
-                    fnExportWorker.process(docClass,
+                    fnExportWorker.extractByObjectClass(docClass,
                             getObjectStoreSource(),
                             customObjectMap,
                             documentClassMap,
@@ -93,13 +96,13 @@ public class FNConnector {
                 }
                 endTime = System.currentTimeMillis();
                 logger.info("Work with (" + whatToProcess + ") is done within: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-            break;
+                break;
             case "Folders":
                 switch (phase) {
                     default:
                         logger.info("Please, specify variale PHASE. Variable managed are: 1,2 and 3, All.");
                         System.exit(-1);
-                    break;
+                        break;
                     case "1":
                         //Scarica fi file dalla cartella dall'object store indicata nel "objectFolder"
                         logger.info("Started phase 1:");
@@ -109,7 +112,7 @@ public class FNConnector {
                         endTime = System.currentTimeMillis();
                         logger.info("Job done with: " + whatToProcess);
                         logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                    break;
+                        break;
                     case "2":
                         //Rinomina i file in accordo con file csv
                         logger.info("Started phase 2:");
@@ -117,7 +120,7 @@ public class FNConnector {
                         fnExportWorker.renameFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                    break;
+                        break;
                     case "3":
                         //Elimina i file che non c'entrano coi file presenti nel csv
                         logger.info("Started phase 3:");
@@ -125,7 +128,7 @@ public class FNConnector {
                         fnExportWorker.deleteRemnantsFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 3: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                    break;
+                        break;
                     case "All":
                         //Fa tutto
                         logger.info("Started phase 1:");
@@ -143,9 +146,9 @@ public class FNConnector {
                         fnExportWorker.deleteRemnantsFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 3: " + DurationFormatUtils.formatDuration(endTime - startTime, "HH:MM:SS", true));
-                    break;
+                        break;
                 }
-            break;
+                break;
         }
     }
 
@@ -155,14 +158,14 @@ public class FNConnector {
         ObjectStore objectStoreSource = null;
         try {
             sourceConnection = Factory.Connection.getConnection(uriSource);
-            Subject subject = UserContext.createSubject(sourceConnection, sourceCPEUsername, sourceCPEPassword, "FileNetP8WSI");
+            Subject subject = UserContext.createSubject(sourceConnection, sourceCPEUsername, sourceCPEPassword, jaasStanzaName);
             UserContext.get().pushSubject(subject);
             sourceDomain = Factory.Domain.fetchInstance(sourceConnection, null, null);
             logger.info("FileNet sourceDomain name: " + sourceDomain.get_Name());
             objectStoreSource = Factory.ObjectStore.fetchInstance(sourceDomain, this.objectStoreSource, null);
             logger.info("Object Store source: " + objectStoreSource.get_DisplayName());
             logger.info("Connected to Source CPE successfully:" + sourceConnection.getURI() + " " + sourceConnection.getConnectionType());
-            logger.info("Switching process work (DocumentClasses or Folders): " + whatToProcess);
+            logger.info("Switching extractByObjectClass work (DocumentClasses or Folders): " + whatToProcess);
         } catch (EngineRuntimeException exception) {
             logger.severe(exception.toString());
             System.exit(-1);
