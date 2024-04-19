@@ -3,20 +3,19 @@ package r2u.tools.entities;
 import com.filenet.api.collection.ContentElementList;
 import com.filenet.api.core.*;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.logging.Logger;
 
 @SuppressWarnings("DuplicatedCode")
 public class FNCustomObject {
     private final String path;
-    Logger logger;
+    private static final Logger logger = Logger.getLogger(FNCustomObject.class.getName());
 
-    public FNCustomObject(String path, Logger logger) {
+    public FNCustomObject(String path) {
         this.path = path;
-        this.logger = logger;
     }
 
     public void extractImmovableBatchSecProxyObj(ObjectStore objectStoreSource, CustomObject documentSource, String id) {
@@ -34,7 +33,7 @@ public class FNCustomObject {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -53,7 +52,7 @@ public class FNCustomObject {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -72,7 +71,7 @@ public class FNCustomObject {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -91,7 +90,7 @@ public class FNCustomObject {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -110,7 +109,7 @@ public class FNCustomObject {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 }

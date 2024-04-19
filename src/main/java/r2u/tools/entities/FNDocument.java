@@ -6,20 +6,19 @@ import com.filenet.api.core.Document;
 import com.filenet.api.core.Factory;
 import com.filenet.api.core.ObjectStore;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.logging.Logger;
 
 @SuppressWarnings("DuplicatedCode")
 public class FNDocument {
     private final String path;
-    Logger logger;
+    private static final Logger logger = Logger.getLogger(FNDocument.class.getName());
 
-    public FNDocument(String path, Logger logger) {
+    public FNDocument(String path) {
         this.path = path;
-        this.logger = logger;
     }
 
     public void extractDREDocument(ObjectStore objectStoreSource, Document documentSource, String id) {
@@ -37,7 +36,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -56,7 +55,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -75,7 +74,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -94,7 +93,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -113,7 +112,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -132,7 +131,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -151,7 +150,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -170,7 +169,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -189,7 +188,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -208,7 +207,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -227,7 +226,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -246,7 +245,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -265,7 +264,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -284,7 +283,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -303,7 +302,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -322,7 +321,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -341,7 +340,7 @@ public class FNDocument {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 }

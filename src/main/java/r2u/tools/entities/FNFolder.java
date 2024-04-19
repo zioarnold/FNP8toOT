@@ -3,20 +3,19 @@ package r2u.tools.entities;
 import com.filenet.api.collection.ContentElementList;
 import com.filenet.api.core.*;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.logging.Logger;
 
 @SuppressWarnings("DuplicatedCode")
 public class FNFolder {
     private final String path;
-    Logger logger;
+    private static final Logger logger = Logger.getLogger(FNDocument.class.getName());
 
-    public FNFolder(String path, Logger logger) {
+    public FNFolder(String path) {
         this.path = path;
-        this.logger = logger;
     }
 
     public void dreFolder(ObjectStore objectStoreSource, Folder documentSource, String id) {
@@ -35,7 +34,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -55,7 +54,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -75,7 +74,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -95,7 +94,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -115,7 +114,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -135,7 +134,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -155,7 +154,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -175,7 +174,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 
@@ -195,7 +194,7 @@ public class FNFolder {
                 }
             }
         } catch (IOException e) {
-            logger.severe(e.toString());
+            logger.error(e.toString());
         }
     }
 }
