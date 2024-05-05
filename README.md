@@ -1,4 +1,4 @@
-# FNP8toOT ver1.2 by MrArni_ZIO - Released
+# FNP8toOT ver1.3 by MrArni_ZIO - Released
 ### Description
 Tool per scaricare dei documenti popolati su FileNet ovvero nel FileSystem, per poi lavorarli. 
 Vedi `phase` per il funzionamento.
