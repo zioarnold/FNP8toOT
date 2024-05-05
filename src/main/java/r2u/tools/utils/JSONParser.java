@@ -16,9 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 public class JSONParser {
     Logger logger = Logger.getLogger(JSONParser.class.getName());
@@ -92,8 +90,8 @@ public class JSONParser {
             System.exit(-1);
         }
 
-        HashMap<String, Boolean> customObjectMap = convertArrayList2HashMap(
-                convertObject2StringArrayList(
+        HashMap<String, Boolean> customObjectMap = Converters.convertArrayList2HashMap(
+                Converters.convertObject2StringArrayList(
                         jsonObject.getJSONArray("objectClasses")
                                 .getJSONObject(0)
                                 .getJSONArray("CustomObject")
@@ -101,8 +99,8 @@ public class JSONParser {
                 )
         );
 
-        HashMap<String, Boolean> documentClassMap = convertArrayList2HashMap(
-                convertObject2StringArrayList(
+        HashMap<String, Boolean> documentClassMap = Converters.convertArrayList2HashMap(
+                Converters.convertObject2StringArrayList(
                         jsonObject.getJSONArray("objectClasses")
                                 .getJSONObject(0)
                                 .getJSONArray("Document")
@@ -110,8 +108,8 @@ public class JSONParser {
                 )
         );
 
-        HashMap<String, Boolean> folderMap = convertArrayList2HashMap(
-                convertObject2StringArrayList(
+        HashMap<String, Boolean> folderMap = Converters.convertArrayList2HashMap(
+                Converters.convertObject2StringArrayList(
                         jsonObject.getJSONArray("objectClasses")
                                 .getJSONObject(0)
                                 .getJSONArray("Folder")
@@ -158,7 +156,7 @@ public class JSONParser {
         }
         Configurator instance = Configurator.getInstance();
         instance.setUriSource(sourceCPE);
-        instance.setObjectStoreSource(sourceCPEObjectStore);
+        instance.setSourceCPEObjectStore(sourceCPEObjectStore);
         instance.setSourceCPEUsername(sourceCPEUsername);
         instance.setSourceCPEPassword(sourceCPEPassword);
         instance.setJaasStanzaName(jaasStanzaName);
@@ -178,22 +176,5 @@ public class JSONParser {
 
     private static JSONObject getJSON(URL url) throws IOException {
         return new JSONObject(IOUtils.toString(url, StandardCharsets.UTF_8));
-    }
-
-    private static ArrayList<String> convertObject2StringArrayList(List<Object> list) {
-        ArrayList<String> arrayList = new ArrayList<>();
-        //Converto oggetti in stringhe
-        for (Object object : list) {
-            arrayList.add(object.toString());
-        }
-        return arrayList;
-    }
-
-    private static HashMap<String, Boolean> convertArrayList2HashMap(ArrayList<String> objectList) {
-        HashMap<String, Boolean> map = new HashMap<>();
-        for (String object : objectList) {
-            map.put(object.split("=")[0], Boolean.valueOf(object.split("=")[1]));
-        }
-        return map;
     }
 }

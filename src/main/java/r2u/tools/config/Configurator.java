@@ -7,7 +7,7 @@ import java.util.HashMap;
 
 public class Configurator {
     private static Configurator instance = null;
-    private String uriSource, objectStoreSource, sourceCPEUsername, sourceCPEPassword, documentClass, whatToProcess, phase, jaasStanzaName, pathToStore, regex, csv;
+    private String uriSource, sourceCPEObjectStore, sourceCPEUsername, sourceCPEPassword, documentClass, whatToProcess, phase, jaasStanzaName, pathToStore, regex, csv;
     private JSONArray objectFolder;
     private HashMap<String, Boolean> customObjectMap, documentClassMap, folderMap;
     private ObjectStore objectStore;
@@ -31,12 +31,12 @@ public class Configurator {
         this.uriSource = uriSource;
     }
 
-    public String getObjectStoreSource() {
-        return objectStoreSource;
+    public String getSourceCPEObjectStore() {
+        return sourceCPEObjectStore;
     }
 
-    public void setObjectStoreSource(String objectStoreSource) {
-        this.objectStoreSource = objectStoreSource;
+    public void setSourceCPEObjectStore(String sourceCPEObjectStore) {
+        this.sourceCPEObjectStore = sourceCPEObjectStore;
     }
 
     public String getSourceCPEUsername() {

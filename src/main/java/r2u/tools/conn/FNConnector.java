@@ -8,24 +8,42 @@ import com.filenet.api.exception.EngineRuntimeException;
 import com.filenet.api.util.UserContext;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.log4j.Logger;
-import org.json.JSONArray;
 import r2u.tools.config.Configurator;
 import r2u.tools.constants.Constants;
+import r2u.tools.utils.FileOperations;
 import r2u.tools.worker.FNExportWorker;
 
 import javax.security.auth.Subject;
-import java.util.HashMap;
 import java.util.List;
 
 public class FNConnector {
     private final Configurator instance = Configurator.getInstance();
     private final FNExportWorker fnExportWorker;
-
     private static final Logger logger = Logger.getLogger(FNConnector.class.getName());
 
     public FNConnector() {
         fnExportWorker = new FNExportWorker();
-        instance.setObjectStore(getObjectStoreSource());
+        ObjectStore objectStore = null;
+        int indexAttempt = 1, maxAttempts = 5;
+        while (objectStore == null) {
+            objectStore = objectStoreSetUp(indexAttempt);
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                logger.error("SOMETHING WRONG WITH THREAD.SLEEP. Aborting!", e);
+                System.exit(-1);
+            }
+            if (indexAttempt == maxAttempts) {
+                break;
+            }
+            indexAttempt++;
+        }
+        if (objectStore != null) {
+            instance.setObjectStore(objectStore);
+        } else {
+            logger.error("AFTER " + indexAttempt + " ATTEMPTS TO ESTABLISH THE CONNECTION TO: " + instance.getUriSource() + " PROGRAM IS ABORTED!");
+            System.exit(-1);
+        }
     }
 
     public void startExport() {
@@ -57,7 +75,7 @@ public class FNConnector {
                         logger.info("Started phase 1:");
                         logger.info("Working with: " + instance.getWhatToProcess());
                         startTime = System.currentTimeMillis();
-                        fnExportWorker.processFolders(getObjectStoreSource(), folderList);
+                        fnExportWorker.processFolders(instance.getObjectStore(), folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Job done with: " + instance.getWhatToProcess());
                         logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, Constants.dateTimeFormat, true));
@@ -67,7 +85,7 @@ public class FNConnector {
                         //Rinomina i file in accordo con file csv
                         logger.info("Started phase 2:");
                         startTime = System.currentTimeMillis();
-                        fnExportWorker.renameFiles(folderList);
+                        FileOperations.renameFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, Constants.dateTimeFormat, true));
                     }
@@ -76,7 +94,7 @@ public class FNConnector {
                         //Elimina i file che non c'entrano coi file presenti nel csv
                         logger.info("Started phase 3:");
                         startTime = System.currentTimeMillis();
-                        fnExportWorker.deleteRemnantsFiles(folderList);
+                        FileOperations.deleteRemnantsFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 3: " + DurationFormatUtils.formatDuration(endTime - startTime, Constants.dateTimeFormat, true));
                     }
@@ -85,17 +103,17 @@ public class FNConnector {
                         //Fa tutto
                         logger.info("Started phase 1:");
                         startTime = System.currentTimeMillis();
-                        fnExportWorker.processFolders(getObjectStoreSource(), folderList);
+                        fnExportWorker.processFolders(instance.getObjectStore(), folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 1: " + DurationFormatUtils.formatDuration(endTime - startTime, Constants.dateTimeFormat, true));
                         logger.info("Started phase 2:");
                         startTime = System.currentTimeMillis();
-                        fnExportWorker.renameFiles(folderList);
+                        FileOperations.renameFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 2: " + DurationFormatUtils.formatDuration(endTime - startTime, Constants.dateTimeFormat, true));
                         logger.info("Started phase 3:");
                         startTime = System.currentTimeMillis();
-                        fnExportWorker.deleteRemnantsFiles(folderList);
+                        FileOperations.deleteRemnantsFiles(folderList);
                         endTime = System.currentTimeMillis();
                         logger.info("Terminated phase 3: " + DurationFormatUtils.formatDuration(endTime - startTime, Constants.dateTimeFormat, true));
                     }
@@ -106,25 +124,28 @@ public class FNConnector {
         }
     }
 
-    private ObjectStore getObjectStoreSource() {
+    private ObjectStore objectStoreSetUp(int indexAttempt) {
         Domain sourceDomain;
         Connection sourceConnection;
-        ObjectStore objectStoreSource = null;
+        logger.info("Trying to establish connection to: " + instance.getUriSource() + "; Attempt number: " + indexAttempt);
         try {
             sourceConnection = Factory.Connection.getConnection(instance.getUriSource());
-            Subject subject = UserContext.createSubject(sourceConnection, instance.getSourceCPEUsername(),
-                    instance.getSourceCPEPassword(), instance.getJaasStanzaName());
+            Subject subject = UserContext.createSubject(Factory.Connection.getConnection(instance.getUriSource()),
+                    instance.getSourceCPEUsername(), instance.getSourceCPEPassword(), instance.getJaasStanzaName());
             UserContext.get().pushSubject(subject);
             sourceDomain = Factory.Domain.fetchInstance(sourceConnection, null, null);
             logger.info("FileNet sourceDomain name: " + sourceDomain.get_Name());
-            objectStoreSource = Factory.ObjectStore.fetchInstance(sourceDomain, instance.getObjectStoreSource(), null);
-            logger.info("Object Store source: " + objectStoreSource.get_DisplayName());
-            logger.info("Connected to Source CPE successfully:" + sourceConnection.getURI() + " " + sourceConnection.getConnectionType());
-            logger.info("Switching extractByObjectClass work (DocumentClasses or Folders): " + instance.getWhatToProcess());
+            ObjectStore objectStore = Factory.ObjectStore.fetchInstance(sourceDomain, instance.getSourceCPEObjectStore(), null);
+            logger.info("Object Store source: " + objectStore.get_DisplayName());
+            logger.info("Connected to Source CPE successfully: " + sourceConnection.getURI() + " " + sourceConnection.getConnectionType());
+            return objectStore;
         } catch (EngineRuntimeException exception) {
-            logger.error("Unable to establish connection to:" + instance.getUriSource(), exception);
-            System.exit(-1);
+            if (exception.getExceptionCode().getErrorId().equals("FNRCA0031")) {
+                logger.error("CONNECTION TIMEOUT, PLEASE CHECK THE WSDL: " + instance.getUriSource(), exception);
+            } else {
+                logger.error("UNMANAGED ERROR IS CAUGHT: " + instance.getUriSource(), exception);
+            }
+            return null;
         }
-        return objectStoreSource;
     }
 }
