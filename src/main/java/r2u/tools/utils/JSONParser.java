@@ -42,7 +42,8 @@ public class JSONParser {
                 csv = jsonObject.getString("csv"),
                 phase = jsonObject.getString("phase"),
                 fileLogPath = jsonObject.getString("fileLogPath"),
-                regex = jsonObject.getString("regex");
+                regex = jsonObject.getString("regex"),
+                makeJson = jsonObject.getString("makeJson");
 
         if (sourceCPE.isEmpty()) {
             logger.error("SourceCPE is empty. Aborting!");
@@ -84,9 +85,12 @@ public class JSONParser {
             logger.error("fileLogPath is empty. Aborting!");
             System.exit(-1);
         }
-
         if (regex.isEmpty()) {
             logger.error("regex is empty. Aborting!");
+            System.exit(-1);
+        }
+        if (makeJson.isEmpty()) {
+            logger.error("makeJson is empty. Aborting!");
             System.exit(-1);
         }
 
@@ -170,6 +174,7 @@ public class JSONParser {
         instance.setCustomObjectMap(customObjectMap);
         instance.setDocumentClassMap(documentClassMap);
         instance.setFolderMap(folderMap);
+        instance.setMakeJson(Boolean.parseBoolean(makeJson));
         FNConnector fnConnector = new FNConnector();
         fnConnector.startExport();
     }

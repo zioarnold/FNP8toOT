@@ -5,20 +5,26 @@ import com.filenet.api.collection.DocumentSet;
 import com.filenet.api.core.*;
 import com.filenet.api.property.Properties;
 import com.filenet.api.query.RepositoryRow;
+import com.filenet.api.util.Id;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 import r2u.tools.config.Configurator;
 import r2u.tools.entities.FNCustomObject;
 import r2u.tools.entities.FNDocument;
 import r2u.tools.entities.FNFolder;
 import r2u.tools.utils.DataFetcher;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class FNExportWorker {
     private final Configurator instance = Configurator.getInstance();
@@ -53,45 +59,126 @@ public class FNExportWorker {
         }
     }
 
-    private void fileFolderLookup(String pathToStore, Folder folderInstance) {
-        //se la cartella contiene sotto cartelle vedo per la cartella corrente se ci sono i file da scaricare,
-        //scarico i file nella cartella corrente e poi procedo col altra in modo recursivo
-        //spero che funzioni cosi`:-D
-        if (!folderInstance.get_SubFolders().isEmpty()) {
-            Iterator<?> iterator = folderInstance.get_SubFolders().iterator();
+    private void fileFolderLookup(String pathToStore, Folder currentFolder) {
+        //verifico se la cartella corrente contiene delle sottocartelle
+        logger.info("Looking if current folder: '" + currentFolder.get_FolderName() + "' contains subfolders");
+        if (!currentFolder.get_SubFolders().isEmpty()) {
+            logger.info("It does so...");
+            Iterator<?> iterator = currentFolder.get_SubFolders().iterator();
             while (iterator.hasNext()) {
-                Folder currentFolder = (Folder) iterator.next();
-                logger.info("Working on: " + currentFolder.get_PathName());
-                if (!currentFolder.get_ContainedDocuments().isEmpty()) {
-                    storeFile(pathToStore, currentFolder);
+                Folder subFolder = (Folder) iterator.next();
+                logger.info("Working on subfolder: " + subFolder.get_PathName());
+                //Se si, allora le scorro una x una e verifico in presenza dei file
+                if (!subFolder.get_ContainedDocuments().isEmpty()) {
+                    //Se ci sono dei file allora li scarico
+                    checkFiles(pathToStore, subFolder);
                 }
-                fileFolderLookup(pathToStore, currentFolder);
+                fileFolderLookup(pathToStore, subFolder);
             }
         } else {
-            if (!folderInstance.get_ContainedDocuments().isEmpty()) {
+            //Se non ci sono delle sottocartelle allora verifico se ci sono dei file in cartella in cui mi trovo x scaricarli se ci sono
+            logger.info("It doesn't so...");
+            if (!currentFolder.get_ContainedDocuments().isEmpty()) {
                 //se la cartella contiene i file
-                storeFile(pathToStore, folderInstance);
+                checkFiles(pathToStore, currentFolder);
             }
         }
     }
 
-    private void storeFile(String pathToStore, Folder currentFolder) {
+    private void checkFiles(String pathToStore, Folder currentFolder) {
         DocumentSet containedDocuments = currentFolder.get_ContainedDocuments();
         Iterator<?> containedDocIterator = containedDocuments.iterator();
+        Id id = null, currentId;
+        int idx = 0;
+        //Sapendo che i file sono referenziati per GUID
+        //Al primo passaggio mi assegno GUID e salvo il file
+        //Al successivo controllo che siano diversi gli GUID
+        //Se sono diversi allora salvo, altrimenti - nah.
         while (containedDocIterator.hasNext()) {
             Document document = (Document) containedDocIterator.next();
             ContentElementList contentElements = document.get_ContentElements();
-            if (!contentElements.isEmpty()) {
-                for (Object docContentElement : contentElements) {
-                    ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
-                    InputStream inputStream = contentTransfer.accessContentStream();
-                    logger.info("Trying to save file under path: " + pathToStore + currentFolder.get_PathName() + "/" + document.get_Name());
+            if (idx == 0) {
+                id = document.getProperties().getIdValue("ID");
+                storeFiles(contentElements, document, pathToStore, currentFolder);
+            }
+            if (idx > 0) {
+                currentId = document.getProperties().getIdValue("ID");
+                if (!id.equals(currentId)) {
+                    storeFiles(contentElements, document, pathToStore, currentFolder);
+                }
+                id = currentId;
+            }
+            idx++;
+        }
+    }
+
+    private void storeFiles(ContentElementList contentElements, Document document, String pathToStore, Folder currentFolder) {
+        String openBracket = "[", closingBracket = "]";
+        String fileName = pathToStore + currentFolder.get_PathName() + "/" + document.get_Name(),
+                jsonFileName = pathToStore + currentFolder.get_PathName() + "/" + document.get_Name() + ".json";
+        if (!contentElements.isEmpty()) {
+            for (Object docContentElement : contentElements) {
+                ContentTransfer contentTransfer = (ContentTransfer) docContentElement;
+                InputStream inputStream = contentTransfer.accessContentStream();
+                logger.info("Trying to save file under path: " + fileName);
+                try {
+                    FileUtils.copyInputStreamToFile(inputStream, new File(fileName));
+                } catch (IOException e) {
+                    logger.error("Unable to save file.", e);
+                }
+                if (instance.isMakeJson()) {
+                    logger.info("Building json metadata for file: " + document.get_Name());
+                    JSONObject json = new JSONObject();
+                    json.put("SistemaDiRiferimento", document.getProperties().getStringValue("SistemaDiRiferimento"));
+                    json.put("IdDocumento", document.getProperties().getStringValue("IdDocumento"));
+                    json.put("Provincia", document.getProperties().getStringValue("Provincia"));
+                    json.put("Descrizione", document.getProperties().getStringValue("Descrizione"));
+                    json.put("Comune", document.getProperties().getStringValue("Comune"));
+                    json.put("CodiceImmobile", document.getProperties().getStringValue("CodiceImmobile"));
+                    json.put("Commentoversione", document.getProperties().getStringValue("Commentoversione"));
+                    json.put("Cestinato", document.getProperties().getBooleanValue("Cestinato"));
+                    json.put("CodiceSito", document.getProperties().getStringValue("CodiceSito"));
+                    json.put("DataDocumento", document.getProperties().getDateTimeValue("DataDocumento"));
+                    json.put("TipoProprieta", document.getProperties().getStringValue("TipoProprieta"));
+                    json.put("DataRinnovo", document.getProperties().getDateTimeValue("DataRinnovo"));
+                    json.put("Note", document.getProperties().getStringValue("Note"));
+                    json.put("Regione", document.getProperties().getStringValue("Regione"));
+                    json.put("CodiceFaldone", document.getProperties().getStringValue("CodiceFaldone"));
+                    json.put("CAP", document.getProperties().getStringValue("CAP"));
+                    json.put("Indirizzo", document.getProperties().getStringValue("Indirizzo"));
+                    json.put("Nazione", document.getProperties().getStringValue("Nazione"));
+                    json.put("IdDocumentoPrincipale", document.getProperties().getStringValue("IdDocumentoPrincipale"));
+                    json.put("NumeroVersione", document.getProperties().getInteger32Value("NumeroVersione"));
+                    json.put("CodiceStanza", document.getProperties().getStringValue("CodiceStanza"));
+                    json.put("CodicePiano", document.getProperties().getStringValue("CodicePiano"));
+                    json.put("CodiceEdificio", document.getProperties().getStringValue("CodiceEdificio"));
+                    json.put("Cancellato", document.getProperties().getBooleanValue("Cancellato"));
                     try {
-                        FileUtils.copyInputStreamToFile(inputStream, new File(pathToStore + currentFolder.get_PathName() + "/" + document.get_Name()));
+                        BufferedWriter createFile = new BufferedWriter(new FileWriter(jsonFileName, true));
+                        createFile.write(openBracket + json + closingBracket);
+                        createFile.close();
                     } catch (IOException e) {
                         logger.error("Unable to save file.", e);
                     }
                 }
+            }
+        }
+        //Normalizzazione del JSON.
+        if (instance.isMakeJson()) {
+            try {
+                Path path = Paths.get(jsonFileName);
+                logger.info("Normalizing JSON file: " + jsonFileName);
+                String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+                Pattern pattern = Pattern.compile("]\\[");
+                Matcher matcher = pattern.matcher(content);
+                if (matcher.find()) {
+                    content = content.replace("][", ",");
+                }
+                BufferedWriter createFile = new BufferedWriter(new FileWriter(jsonFileName, false));
+                createFile.write(content);
+                createFile.close();
+            } catch (IOException e) {
+                logger.error("Unable to read file.", e);
             }
         }
     }

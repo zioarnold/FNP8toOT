@@ -11,6 +11,7 @@ public class Configurator {
     private JSONArray objectFolder;
     private HashMap<String, Boolean> customObjectMap, documentClassMap, folderMap;
     private ObjectStore objectStore;
+    private boolean makeJson;
 
     private Configurator() {
 
@@ -149,5 +150,13 @@ public class Configurator {
 
     public void setRegex(String regex) {
         this.regex = regex;
+    }
+
+    public void setMakeJson(boolean makeJson) {
+        this.makeJson = makeJson;
+    }
+
+    public boolean isMakeJson() {
+        return makeJson;
     }
 }
