@@ -1,4 +1,4 @@
-# FNP8toOT ver1.3 by MrArni_ZIO - Released
+# FNP8toOT ver1.4 by MrArni_ZIO - Released
 ### Description
 Tool per scaricare dei documenti popolati su FileNet ovvero nel FileSystem, per poi lavorarli. 
 Vedi `phase` per il funzionamento.
@@ -21,6 +21,8 @@ Variabile di comando, gestiti valori: 1, 2, 3 e All. La `1` avvia la fase 1 cio√
 La `2` avvia la fase 2, cio√® la fase di rinomina dei file. La `3` elimina i file che non sono presenti nel file csv.
 La `All` avvia tutte le fasi. Le fasi `2` e `3` non hanno bisogno di connessione al filenet. Mentre nelle fasi `1` e `all`
 e' necessario avere la connessione stabile col FileNet (CPE).
+#### makeJson
+Variabile che comanda la creazione di json file con dei meta dati di ogni file che si scarica nella fase `1`
 #### _Usage_
 `java -jar path\filename.jar path\config.json`.<br>
 Per qualsiasi bug, feature request - non esitate a chiamarmi, messagarmi.
