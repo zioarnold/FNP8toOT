@@ -1,1 +1,1 @@
-java -jar ./FNP8toOT.jar
+java -version; java -jar ./FNP8toOT.jar
