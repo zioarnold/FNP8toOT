@@ -11,6 +11,7 @@
   "phase": "3",
   "fileLogPath": "logs/",
   "regex": "[&#,+()$~%!„'\"*‚^¤?<>|@ª{«»§}©®™ìùéòèàÙÒÌÉÈÀ√]",
+  "makeJson": "true",
   "objectFolder": [
     "/somepath/"
   ],
